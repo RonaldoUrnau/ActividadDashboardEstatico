@@ -1,156 +1,203 @@
-let data = [];
+const latitude = -27.37;
+const longitude = -55.90;
 
-// grafico 1
-fetch("data/annual-co2-emissions-per-country.csv")
-  .then(res => res.text())
-  .then(csv => {
-    const rows = csv.split("\n").slice(1);
+let weatherData;
 
-    data = rows.map(r => {
-      const c = r.split(",");
-      return {
-        entity: c[0],
-        year: c[2],
-        value: parseFloat(c[3])
-      };
-    }).filter(d => d.year && !isNaN(d.value));
 
-    initFilter();
-    updateChart("World");
+fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_days=3&timezone=auto`)
+  .then(res => res.json())
+  .then(data => {
+
+    weatherData = data;
+
+    updateCharts(0);
+
+    document.getElementById("daySelector")
+      .addEventListener("change", (e) => {
+
+        updateCharts(parseInt(e.target.value));
+
+      });
   });
 
-function initFilter() {
-  const select = document.getElementById("country");
-  const countries = [...new Set(data.map(d => d.entity))];
 
-  countries.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
-    select.appendChild(opt);
-  });
 
-  select.addEventListener("change", (e) => {
-    updateChart(e.target.value);
-  });
+// update charts
+
+
+function updateCharts(dayIndex) {
+
+  const times = weatherData.hourly.time;
+  const temps = weatherData.hourly.temperature_2m;
+  const humidity = weatherData.hourly.relative_humidity_2m;
+  const wind = weatherData.hourly.wind_speed_10m;
+
+  const start = dayIndex * 24;
+  const end = start + 24;
+
+  const dayHours = times.slice(start, end)
+    .map(t => t.split("T")[1]);
+
+  const dayTemps = temps.slice(start, end);
+  const dayHumidity = humidity.slice(start, end);
+  const dayWind = wind.slice(start, end);
+
+  createTemperatureChart(dayHours, dayTemps);
+  createHumidityChart(dayHours, dayHumidity);
+  createWindChart(dayHours, dayWind);
 }
 
-function updateChart(country) {
-  const filtered = data.filter(d => d.entity === country);
 
-  const years = filtered.map(d => d.year);
-  const values = filtered.map(d => d.value);
 
-  const chart1 = echarts.init(document.getElementById("chart1"));
+// temperatura
 
-  chart1.setOption({
+
+function createTemperatureChart(hours, temps) {
+
+  const chart = echarts.init(document.getElementById("chart1"));
+
+  chart.setOption({
+
     backgroundColor: "#111",
-    textStyle: { color: "#fff" },
-    title: { text: "CO2 por país", textStyle: { color: "#fff" } },
-    tooltip: {},
+
+    textStyle: {
+      color: "#fff"
+    },
+
+    title: {
+      text: "Temperatura",
+      textStyle: {
+        color: "#fff"
+      }
+    },
+
+    tooltip: {
+      trigger: "axis"
+    },
+
     xAxis: {
       type: "category",
-      data: years,
-      axisLabel: { color: "#fff" }
+      data: hours,
+      axisLabel: {
+        color: "#fff"
+      }
     },
+
     yAxis: {
       type: "value",
-      axisLabel: { color: "#fff" }
+      axisLabel: {
+        color: "#fff"
+      }
     },
+
     series: [{
-      data: values,
+      data: temps,
       type: "line",
       smooth: true,
-      lineStyle: { color: "#00ffcc" }
+      lineStyle: {
+        width: 3
+      }
     }]
   });
 }
 
-//grafico 2
-fetch("data/temperature-anomaly.csv")
-  .then(r => r.text())
-  .then(csv => {
-    const rows = csv.split("\n").slice(1);
 
-    const years = [];
-    const temps = [];
 
-    rows.forEach(r => {
-      const c = r.split(",");
-      if (c[0] === "World") {
-        years.push(c[2]);
-        temps.push(parseFloat(c[3]));
+// humedad
+
+
+function createHumidityChart(hours, humidity) {
+
+  const chart = echarts.init(document.getElementById("chart2"));
+
+  chart.setOption({
+
+    backgroundColor: "#111",
+
+    textStyle: {
+      color: "#fff"
+    },
+
+    title: {
+      text: "Humedad",
+      textStyle: {
+        color: "#fff"
       }
-    });
+    },
 
-    const chart2 = echarts.init(document.getElementById("chart2"));
+    tooltip: {
+      trigger: "axis"
+    },
 
-    chart2.setOption({
-      backgroundColor: "#111",
-      textStyle: { color: "#fff" },
-      title: { text: "Temperatura global", textStyle: { color: "#fff" } },
-      tooltip: {},
-      xAxis: {
-        type: "category",
-        data: years,
-        axisLabel: { color: "#fff" }
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { color: "#fff" }
-      },
-      series: [{
-        data: temps,
-        type: "line",
-        smooth: true,
-        lineStyle: { color: "#ffcc00" }
-      }]
-    });
-  });
-
-// grafico 3
-fetch("data/co2-emissions-by-fuel-line.csv")
-  .then(r => r.text())
-  .then(csv => {
-    const rows = csv.split("\n").slice(1);
-
-    const years = [];
-    const oil = [];
-    const coal = [];
-    const gas = [];
-
-    rows.forEach(r => {
-      const c = r.split(",");
-      if (c[0] === "World") {
-        years.push(c[2]);
-        oil.push(parseFloat(c[3]) || 0);
-        coal.push(parseFloat(c[4]) || 0);
-        gas.push(parseFloat(c[6]) || 0);
+    xAxis: {
+      type: "category",
+      data: hours,
+      axisLabel: {
+        color: "#fff"
       }
-    });
+    },
 
-    const chart3 = echarts.init(document.getElementById("chart3"));
+    yAxis: {
+      type: "value",
+      axisLabel: {
+        color: "#fff"
+      }
+    },
 
-    chart3.setOption({
-      backgroundColor: "#111",
-      textStyle: { color: "#fff" },
-      title: { text: "CO2 por fuente", textStyle: { color: "#fff" } },
-      tooltip: { trigger: "axis" },
-      legend: { data: ["Oil", "Coal", "Gas"], textStyle: { color: "#fff" } },
-      xAxis: {
-        type: "category",
-        data: years,
-        axisLabel: { color: "#fff" }
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { color: "#fff" }
-      },
-      series: [
-        { name: "Oil", data: oil, type: "line" },
-        { name: "Coal", data: coal, type: "line" },
-        { name: "Gas", data: gas, type: "line" }
-      ],
-      color: ["#00ffcc", "#ff4444", "#3399ff"]
-    });
+    series: [{
+      data: humidity,
+      type: "bar"
+    }]
   });
+}
+
+
+
+// viento
+
+
+function createWindChart(hours, wind) {
+
+  const chart = echarts.init(document.getElementById("chart3"));
+
+  chart.setOption({
+
+    backgroundColor: "#111",
+
+    textStyle: {
+      color: "#fff"
+    },
+
+    title: {
+      text: "Velocidad del viento",
+      textStyle: {
+        color: "#fff"
+      }
+    },
+
+    tooltip: {
+      trigger: "axis"
+    },
+
+    xAxis: {
+      type: "category",
+      data: hours,
+      axisLabel: {
+        color: "#fff"
+      }
+    },
+
+    yAxis: {
+      type: "value",
+      axisLabel: {
+        color: "#fff"
+      }
+    },
+
+    series: [{
+      data: wind,
+      type: "line",
+      smooth: true
+    }]
+  });
+}
